@@ -1,0 +1,96 @@
+Procedure to flash in Garuda-3:-
+------------------------------
+
+Step 1: Copy the firmware file i.e. "garuda3" in the following path.(Delete or keep it another location, which is already present)
+	path-> sama/poky/meta/recipes-garuda3
+	
+Step 2:Open terminal and run following commands step by step:
+	1)cd sama/poky
+	2)source oe-init-build-env build-microchip
+	3)LC_ALL=en_US.utf8 bitbake -c cleanall garuda3
+	4)LC_ALL=en_US.utf8 bitbake garuda3   OR LC_ALL=en_US.utf8 bitbake core-image-minimal
+	
+Step 4:	Open the Terminal and run following commands step by step:
+	1)cd garuda3_image/image
+	2)sudo ./create-emmc-image.sh
+	3)sudo ./cp_to_flash.sh
+	4)sudo ./unmount_flash.sh
+	copy the emmc image to the image folder through sd card if you are doing first time
+	
+Step 5:Make the connections.When G-3 is powered, only Power LED should be ON.
+	->Connect USB-to-TTL cable and another USB cable from G-3 board to Linux Machine.
+	__________________________________
+	DB-9 Connector:-  CAN-H=>Pin_7
+			  CAN-L=>Pin_2
+			  
+	DB-25 Connector:-  Channel_0:- CAN-H=>Pin_3
+			   	       CAN-L=>Pin_4
+			   Channel_1:- CAN-H=>Pin_22
+			   	       CAN-L=>Pin_21
+       ___________________________________
+	
+Step 6:In Terminal 1: run the command-> "sudo minicom -D /dev/ttyUSB0" or sudo picocom -b 115200 /dev/ttyACM0 or exclude this sudo minicom -D /dev/ttyACM0.....after doing this one terminal will open and you take another terminal and follow below comands
+	In Terminal 2: cd garuda3_image/sam_ba/sam_ba/sam-ba_v3.7-linux_x86_64
+			And then run "./write_linux.sh" (This is used when you have changed the firmware and want to flash in G3 board).
+			OTHERWISE, run following command
+			./reset.sh (After running this command, It should change from ttyUSB0 to "ttyACM0", If not changes to ttyACM0, Do hardware reset and again run "./reset.sh" )
+			=>Once it changed to "ttyACM0", In terminal-1, uboot>....................... comes. There paste the following commands one after one
+		
+			Command 1:setenv bootargs console=ttyS0,115200 earlycon earlyprintk=serial,ttyS0,ignore_loglevel root=/dev/mmcblk0p2 memtest=0 rootfstype=ext4 rw rootwait
+			Command 2:ext4load mmc 0:2 0x24000000 boot/sama5d29_garuda3.itb; bootm 0x24000000#kernel_dtb
+			ext4load mmc 0:2 0x24000000 boot/sama5d27_som1_ek.itb; bootm 0x24000000#kernel_dtb
+			
+			if its for first time copy in uboot section is: mmc write 0x24000000 0 0x40000
+
+Step 7:Login as "root" and Then "run-g3d.sh"
+
+NOTE:Check hid script-> vi /etc/init.d/hid.sh
+     Check run-g3d.sh-> vi /usr/bin/run-g3d.sh
+      
+      To verify that the changes are reflected or not for CAN-FD.If you make changes, reboot once. 
+    
+    =>update-rc.d hid.sh defaults			
+    
+    
+    
+ STEPS TO COPY G3D USING SCP
+=====================================
+
+1)Add the below line in local.conf:  
+	IMAGE_INSTALL:append = " openssh"
+2)Run the below command in console for installing openssh server:
+	sudo apt update
+	sudo apt install openssh-server
+3)In board eth0 interface up and check once the ping is happening or not
+	ifconfig eth0 192.168.1.30 up
+4)In laptop configure 192.168.1.20 address to enpls01 and the run the below command
+      scp /home/bharani/git/garuda_3/yocto/poky/build-microchip/tmp/work/cortexa5t2hf-neon-vfpv4-poky-linux-gnueabi/garuda3/1.0-r0/g3d root@192.168.1.30:/usr/bin/g3d
+      
+  =========================In Board=================================================    
+      scp bharani@192.168.1.20:/home/bharani/git/garuda_3/yocto/poky/build-sama5d27-som1-ek1/tmp/work/cortexa5t2hf-neon-vfpv4-poky-linux-gnueabi/garuda3/1.0-r0/g3d /usr/sbin/g3d
+      
+===========================================================================
+Autobbot Commands:-
+1)setenv bootargs console=ttyS0,115200 earlycon earlyprintk=serial,ttyS0,ignore_loglevel root=/dev/mmcblk0p2 memtest=0 rootfstype=ext4 rw rootwait && saveenv
+2)setenv bootcmd 'ext4load mmc 0:2 0x24000000 boot/sama5d27_som1_ek.itb; bootm 0x24000000#kernel_dtb' && saveenv
+3)Do reset in SAMBA
+
+==============================
+Fuse Burn:-
+
+1)sudo ./sam-ba -p serial -b sama5d2-g3v1 -a bootconfig -c readcfg:fuse
+
+2)sudo ./sam-ba -p serial -b sama5d2-g3v1 -a bootconfig -c writecfg:fuse:0x00061FF7
+
+repeat 1st command
+
+==================================================================================================================
+dhcp-range=192.168.1.10,192.168.1.100,255.255.255.0,12h           
+dhcp-option=option:router,192.168.1.1                            
+dhcp-option=option:dns-server,192.168.1.1                
+dhcp-option=option:domain-name,local
+dhcp-authoritative                                                
+=============================================================================================
+
+     
+      
